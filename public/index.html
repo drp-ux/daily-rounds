@@ -22,7 +22,611 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
+  --bg:#F2F4F8;--card:#FFF;--border:#E2E8F0;<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Daily Rounds">
+<title>Daily Rounds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
   --bg:#F2F4F8;--card:#FFF;--border:#E2E8F0;
+  --text:#0F172A;--sub:#64748B;
+  --blue:#2563EB;--blue-l:#EFF6FF;
+  --green:#059669;--green-l:#ECFDF5;
+  --amber:#B45309;--amber-l:#FFFBEB;
+  --red:#DC2626;--red-l:#FEF2F2;
+  --purple:#7C3AED;--purple-l:#F5F3FF;
+  --teal:#0D9488;--teal-l:#F0FDFA;
+  --r:14px;--sh:0 1px 3px rgba(0,0,0,.07),0 4px 12px rgba(0,0,0,.05);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);
+  -webkit-font-smoothing:antialiased;overscroll-behavior:none}
+button{font-family:'DM Sans',sans-serif;cursor:pointer;border:none}
+input,textarea{font-family:'DM Sans',sans-serif}
+
+/* SCREENS */
+.screen{display:none;flex-direction:column;height:100dvh;overflow:hidden}
+.screen.active{display:flex}
+
+/* HEADER */
+.hdr{background:var(--card);border-bottom:1px solid var(--border);
+  padding:14px 16px env(safe-area-inset-bottom,0);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
+.hdr-left h1{font-size:17px;font-weight:600;letter-spacing:-.3px}
+.hdr-left p{font-size:11px;color:var(--sub);font-family:'DM Mono',monospace;margin-top:2px}
+.hdr-right{display:flex;gap:7px;align-items:center}
+
+/* SYNC DOT */
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#94A3B8;flex-shrink:0;transition:background .3s}
+.sync-dot.syncing{background:#F59E0B;animation:blink 1s infinite}
+.sync-dot.ok{background:var(--green)}
+.sync-dot.err{background:var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* BUTTONS */
+.btn{padding:9px 15px;border-radius:10px;font-size:13px;font-weight:500;
+  transition:all .15s;display:inline-flex;align-items:center;gap:6px;-webkit-tap-highlight-color:transparent}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:active{background:#1d4ed8;transform:scale(.97)}
+.btn-outline{background:transparent;color:var(--sub);border:1.5px solid var(--border)}
+.btn-outline:active{background:var(--bg)}
+.btn-red{background:var(--red-l);color:var(--red);border:1.5px solid #FCA5A5}
+.btn-red:active{background:#fee2e2}
+.btn-sm{padding:7px 11px;font-size:12px;border-radius:8px}
+.btn-icon{padding:8px;border-radius:10px;background:var(--bg);color:var(--sub);
+  display:inline-flex;align-items:center;justify-content:center}
+.btn-icon:active{background:var(--border)}
+
+/* BADGES */
+.badge{font-size:10px;font-weight:600;padding:3px 7px;border-radius:6px;
+  font-family:'DM Mono',monospace;flex-shrink:0;white-space:nowrap}
+.badge-np{background:var(--amber-l);color:var(--amber);border:1px solid #FCD34D}
+.badge-fu{background:var(--blue-l);color:var(--blue);border:1px solid #93C5FD}
+.badge-ok{background:var(--green-l);color:var(--green);border:1px solid #6EE7B7}
+.badge-age{background:var(--purple-l);color:var(--purple);border:1px solid #C4B5FD}
+
+/* ADD ROW */
+.add-row{padding:10px 14px;background:var(--card);border-bottom:1px solid var(--border);
+  display:flex;gap:8px;flex-shrink:0}
+.add-row input{flex:1;padding:10px 13px;border:1.5px solid var(--border);border-radius:10px;
+  font-size:14px;outline:none;color:var(--text);background:var(--bg)}
+.add-row input:focus{border-color:var(--blue);background:#fff}
+.add-row input::placeholder{color:#94A3B8}
+
+/* PATIENT LIST */
+.plist{flex:1;overflow-y:auto;padding:10px 12px 40px;-webkit-overflow-scrolling:touch}
+
+.pcard{background:var(--card);border-radius:var(--r);border:1.5px solid var(--border);
+  padding:14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;
+  cursor:pointer;transition:border-color .15s,transform .1s;box-shadow:var(--sh);
+  -webkit-tap-highlight-color:transparent;user-select:none}
+.pcard:active{transform:scale(.984);border-color:var(--blue)}
+.pcard.has-note{border-left:3.5px solid var(--green)}
+
+.pcard-num{font-family:'DM Mono',monospace;font-size:11px;color:var(--sub);
+  background:var(--bg);padding:4px 6px;border-radius:6px;min-width:28px;text-align:center;flex-shrink:0}
+.pcard-body{flex:1;min-width:0}
+.pcard-name{font-size:15px;font-weight:600;letter-spacing:-.2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-meta{display:flex;gap:6px;align-items:center;margin-top:5px;flex-wrap:wrap}
+.pcard-room{font-size:11px;color:var(--sub);font-family:'DM Mono',monospace}
+.pcard-preview{font-size:11px;color:var(--sub);font-style:italic;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.pcard-right{display:flex;flex-direction:column;align-items:flex-end;gap:5px;flex-shrink:0}
+.pcard-arrow{color:#CBD5E1}
+
+/* NOTE SCREEN */
+.note-hdr-name{font-size:19px;font-weight:600;letter-spacing:-.3px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.note-hdr-meta{display:flex;gap:7px;align-items:center;margin-top:5px;flex-wrap:wrap}
+.note-hdr-room{font-size:12px;color:var(--sub);font-family:'DM Mono',monospace}
+
+/* SNAPSHOT CARD */
+.snapshot-card{border-radius:10px;border:1.5px solid #99F6E4;background:var(--teal-l);
+  padding:10px 13px;font-size:13px;color:#0F766E;line-height:1.6;
+  flex-shrink:0;box-shadow:var(--sh)}
+.snapshot-label{font-size:10px;font-weight:600;font-family:'DM Mono',monospace;
+  color:#0D9488;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px;display:block}
+
+.note-body{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;
+  -webkit-overflow-scrolling:touch}
+.note-ta{width:100%;padding:16px;border:2px solid var(--border);border-radius:var(--r);
+  font-size:16px;line-height:1.75;resize:none;background:var(--card);color:var(--text);
+  outline:none;transition:border-color .15s;min-height:140px;
+  -webkit-overflow-scrolling:touch;box-shadow:var(--sh)}
+.note-ta:focus{border-color:var(--blue)}
+.note-ta::placeholder{color:#CBD5E1}
+.note-ts{font-size:11px;color:var(--sub);font-family:'DM Mono',monospace;text-align:right;margin-top:-2px}
+
+.nav-row{display:flex;gap:8px;flex-shrink:0}
+.nav-row .btn{flex:1;justify-content:center;padding:14px;font-size:14px}
+
+/* SHEET */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;
+  align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.sheet{background:var(--card);border-radius:22px 22px 0 0;padding:20px 20px 40px;
+  width:100%;max-width:600px;box-shadow:0 -8px 40px rgba(0,0,0,.15);animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(60px);opacity:0}to{transform:translateY(0);opacity:1}}
+.sheet-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.sheet h2{font-size:17px;font-weight:600;margin-bottom:6px}
+.sheet p{font-size:13px;color:var(--sub);margin-bottom:14px;line-height:1.6}
+.sheet textarea{width:100%;height:160px;padding:12px;border:1.5px solid var(--border);
+  border-radius:12px;font-family:'DM Mono',monospace;font-size:12px;
+  resize:none;outline:none;color:var(--text);background:var(--bg);margin-bottom:14px}
+.sheet textarea:focus{border-color:var(--blue);background:#fff}
+.sheet-actions{display:flex;gap:10px}
+.sheet-actions .btn{flex:1;justify-content:center;padding:14px;font-size:14px}
+.export-ta{width:100%;height:200px;padding:12px;border:1.5px solid var(--border);
+  border-radius:12px;font-family:'DM Mono',monospace;font-size:12px;line-height:1.6;
+  resize:none;outline:none;color:var(--text);background:var(--bg);margin-bottom:14px}
+
+/* CONFIRM */
+.confirm-bar{position:fixed;bottom:0;left:0;right:0;z-index:150;
+  background:var(--red-l);border-top:1.5px solid #FCA5A5;
+  padding:14px 18px 36px;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;font-size:13px;color:var(--red);animation:slideUp .2s ease}
+.confirm-btns{display:flex;gap:8px}
+
+/* EMPTY */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;padding:40px 28px;text-align:center}
+.empty .ei{font-size:52px}
+.empty h3{font-size:16px;font-weight:600}
+.empty p{font-size:13px;color:var(--sub);line-height:1.6;max-width:260px}
+
+::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+
+<!-- LIST SCREEN -->
+<div class="screen active" id="listScreen">
+  <div class="hdr">
+    <div class="hdr-left">
+      <h1>🏥 Daily Rounds</h1>
+      <p id="listSub">Loading…</p>
+    </div>
+    <div class="hdr-right">
+      <div class="sync-dot" id="syncDot" title="Sync status"></div>
+      <button class="btn btn-outline btn-sm" id="exportBtn" style="display:none" onclick="openExport()">Export</button>
+      <button class="btn btn-blue btn-sm" onclick="openImport()">+ Import</button>
+      <button class="btn-icon" onclick="confirmClear()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+          <path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+  <div class="add-row">
+    <input id="newNameInput" placeholder="Add patient manually…" onkeydown="if(event.key==='Enter')addManual()"/>
+    <button class="btn btn-blue btn-sm" onclick="addManual()" style="flex-shrink:0">Add</button>
+  </div>
+  <div class="plist" id="patientList"></div>
+</div>
+
+<!-- NOTE SCREEN -->
+<div class="screen" id="noteScreen">
+  <div class="hdr">
+    <div style="flex:1;min-width:0">
+      <button class="btn btn-outline btn-sm" onclick="goBack()"
+        style="margin-bottom:7px;display:inline-flex;align-items:center;gap:4px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>All Patients
+      </button>
+      <div class="note-hdr-name" id="notePatientName"></div>
+      <div class="note-hdr-meta" id="notePatientMeta"></div>
+    </div>
+    <button class="btn btn-outline btn-sm" onclick="clearCurrentNote()">Clear</button>
+  </div>
+  <div class="note-body">
+    <!-- SNAPSHOT CARD — shown when a clinical snapshot exists for this patient -->
+    <div class="snapshot-card" id="noteSnapshotCard" style="display:none">
+      <span class="snapshot-label">📋 Clinical Snapshot</span>
+      <span id="noteSnapshotText"></span>
+    </div>
+
+    <textarea class="note-ta" id="noteTextarea" placeholder="Type or dictate your note…"
+      oninput="onNoteInput(this.value)"></textarea>
+    <div class="note-ts" id="noteTimestamp"></div>
+    <div style="padding:14px;border-radius:var(--r);background:#f0f9ff;border:1.5px solid #bae6fd;font-size:14px;color:#0369a1;text-align:center;line-height:1.6;flex-shrink:0;">
+      🎤 Tap the note box, then tap the <strong>microphone</strong> on your iPhone keyboard to dictate
+    </div>
+    <div class="nav-row" id="navRow"></div>
+  </div>
+</div>
+
+<!-- IMPORT SHEET -->
+<div class="overlay" id="importOverlay" onclick="if(event.target===this)closeImport()">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>Import from ECW</h2>
+    <p>Paste your raw ECW schedule — name, room, age, sex, and visit type (NP / F/U) are extracted automatically. The list saves instantly and loads on all your devices.</p>
+    <textarea id="importText" placeholder="Paste ECW schedule here…"></textarea>
+    <div class="sheet-actions">
+      <button class="btn btn-outline" onclick="closeImport()">Cancel</button>
+      <button class="btn btn-blue" onclick="doImport()">Import Patients</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT SHEET -->
+<div class="overlay" id="exportOverlay" onclick="if(event.target===this)closeExport()">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <h2>Export Notes</h2>
+    <p>All notes for today. Copy and paste into ECW, email, or your EHR.</p>
+    <textarea class="export-ta" id="exportText" readonly></textarea>
+    <div class="sheet-actions">
+      <button class="btn btn-outline" onclick="closeExport()">Done</button>
+      <button class="btn btn-blue" id="copyBtn" onclick="copyNotes()">Copy All Notes</button>
+    </div>
+  </div>
+</div>
+
+<!-- CLEAR CONFIRM -->
+<div class="confirm-bar" id="confirmBar" style="display:none">
+  <span>⚠️ Clear all patients and notes?</span>
+  <div class="confirm-btns">
+    <button class="btn btn-outline btn-sm" onclick="cancelClear()">Cancel</button>
+    <button class="btn btn-red btn-sm" onclick="doClear()">Clear All</button>
+  </div>
+</div>
+
+<script>
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let patients = [];
+let activeId = null;
+let noteTimer = null;
+let isEditing = false;
+let editingTimer = null;
+
+// ─── ECW PARSER ───────────────────────────────────────────────────────────────
+function parseECW(text) {
+  // ECW table has Visit Type as the FIRST column, before Appt Time.
+  // So VNP/VF/U for patient N appears BEFORE their timestamp in the paste,
+  // ending up at the END of the previous chunk after splitting on times.
+  // Fix: get each patient's visit type from the end of the PREVIOUS chunk.
+  const parts = text.split(/\d{1,2}:\d{2}\s(?:AM|PM)/g).map(s => s.trim()).filter(Boolean);
+
+  function extractVisitType(chunk) {
+    if (!chunk) return '';
+    const fields = chunk.split("\t").map(f => f.trim());
+    for (let i = fields.length - 1; i >= 0; i--) {
+      if (/VNP$/i.test(fields[i]))                                return "NP";
+      if (/VF\/U$/i.test(fields[i]) || /VFU$/i.test(fields[i])) return "F/U";
+    }
+    return '';
+  }
+
+  const results = [];
+  parts.forEach((chunk, idx) => {
+    const fields = chunk.split("\t").map(f => f.trim());
+    if (fields.length < 4) return;
+    let name = fields[0].replace(/^(Mr\.|Mrs\.|Ms\.|Miss\.|Dr\.)\s*/i, "").trim();
+    if (!name) return;
+    if (name === name.toUpperCase())
+      name = name.replace(/\b\w+/g, w => w[0].toUpperCase() + w.slice(1).toLowerCase());
+    let room = fields[3] || "";
+    if (!room || /^[MF]$/i.test(room) || room.length < 3) {
+      room = "";
+      for (let i = 2; i < fields.length; i++) {
+        const f = fields[i];
+        if (/\d+-[AB]$/i.test(f) || /floor/i.test(f) || /^W\d[AB]/i.test(f) ||
+            /^Bair/i.test(f) || /^WG[AB]/i.test(f) || /^McCrak/i.test(f) || /^3rd\s/i.test(f)) {
+          room = f; break;
+        }
+      }
+    }
+    let sex = "", age = "";
+    for (let i = 1; i < fields.length; i++) {
+      if (/^[MF]$/i.test(fields[i])) {
+        sex = fields[i].toUpperCase();
+        const m = (fields[i+1]||"").match(/^(\d+)\s*Y/i);
+        if (m) age = m[1];
+        break;
+      }
+      const combo = fields[i].match(/^([MF])\s+(\d+)\s*Y/i);
+      if (combo) { sex = combo[1].toUpperCase(); age = combo[2]; break; }
+    }
+    // Visit type for patient[i] is at end of parts[i-1]; fall back to current chunk for first patient
+    const visitType = extractVisitType(parts[idx - 1]) || extractVisitType(chunk);
+    results.push({ id: crypto.randomUUID(), name, room, sex, age, visitType, note: "", updatedAt: null });
+  });
+  return results;
+}
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+function setSyncStatus(state) {
+  const dot = document.getElementById("syncDot");
+  dot.className = "sync-dot " + state;
+}
+
+// ─── LOCAL BACKUP ─────────────────────────────────────────────────────────────
+const BACKUP_KEY = "dailyRoundsBackup";
+
+function saveBackup(pts) {
+  try { localStorage.setItem(BACKUP_KEY, JSON.stringify({ patients: pts, savedAt: Date.now() })); } catch(e) {}
+}
+
+function loadBackup() {
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    const savedDate = new Date(data.savedAt).toDateString();
+    const todayDate = new Date().toDateString();
+    if (savedDate !== todayDate) return null;
+    return data.patients || null;
+  } catch(e) { return null; }
+}
+
+async function apiGet() {
+  try {
+    setSyncStatus("syncing");
+    const r = await fetch("/api/patients");
+    const data = await r.json();
+    const serverPatients = data.patients || [];
+
+    if (serverPatients.length === 0) {
+      const backup = loadBackup();
+      if (backup && backup.length > 0) {
+        patients = backup;
+        setSyncStatus("syncing");
+        await fetch("/api/patients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ patients: backup })
+        });
+        setSyncStatus("ok");
+        return true;
+      }
+    }
+
+    patients = serverPatients;
+    if (patients.length > 0) saveBackup(patients);
+    setSyncStatus("ok");
+    return true;
+  } catch(e) { setSyncStatus("err"); return false; }
+}
+
+async function apiPost(pts) {
+  try {
+    setSyncStatus("syncing");
+    await fetch("/api/patients", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patients: pts })
+    });
+    saveBackup(pts);
+    setSyncStatus("ok");
+  } catch(e) { setSyncStatus("err"); }
+}
+
+async function apiPatchNote(id, note) {
+  try {
+    setSyncStatus("syncing");
+    await fetch(`/api/patients/${id}/note`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note })
+    });
+    const p = patients.find(p => p.id === id);
+    if (p) { p.note = note; saveBackup(patients); }
+    setSyncStatus("ok");
+  } catch(e) { setSyncStatus("err"); }
+}
+
+async function apiDelete() {
+  try {
+    setSyncStatus("syncing");
+    await fetch("/api/patients", { method: "DELETE" });
+    try { localStorage.removeItem(BACKUP_KEY); } catch(e) {}
+    setSyncStatus("ok");
+  } catch(e) { setSyncStatus("err"); }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+const today = new Date().toLocaleDateString("en-US", { weekday:"long", month:"short", day:"numeric" });
+
+async function init() {
+  await apiGet();
+  renderList();
+  setInterval(async () => {
+    if (document.visibilityState === "visible") {
+      await apiGet();
+      renderList();
+      if (activeId && !isEditing) renderNoteScreen(false);
+    }
+  }, 90000);
+}
+
+init();
+
+// ─── RENDER LIST ──────────────────────────────────────────────────────────────
+function renderList() {
+  const notedCount = patients.filter(p => p.note.trim()).length;
+  document.getElementById("listSub").textContent =
+    `${today} · ${patients.length} patients${notedCount ? ` · ${notedCount} noted` : ""}`;
+  document.getElementById("exportBtn").style.display = notedCount > 0 ? "" : "none";
+
+  const list = document.getElementById("patientList");
+  if (patients.length === 0) {
+    list.innerHTML = `<div class="empty">
+      <div class="ei">📋</div>
+      <h3>No patients yet</h3>
+      <p>Tap <strong>+ Import</strong> to paste your ECW schedule, or add manually above.</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = patients.map((p, i) => `
+    <div class="pcard${p.note.trim() ? " has-note" : ""}" onclick="openPatient('${p.id}')">
+      <div class="pcard-num">${i + 1}</div>
+      <div class="pcard-body">
+        <div class="pcard-name">${esc(p.name)}</div>
+        <div class="pcard-meta">
+          ${p.room ? `<span class="pcard-room">📍 ${esc(p.room)}</span>` : ""}
+          ${p.snapshot ? `<span class="pcard-room" style="color:#0D9488;font-style:normal">📋</span>` : ""}
+          ${p.note.trim() ? `<span class="pcard-preview">${esc(p.note.trim().slice(0,55))}</span>` : ""}
+        </div>
+      </div>
+      <div class="pcard-right">
+        ${(p.sex||p.age) ? `<span class="badge badge-age">${esc(p.sex)}${p.age?" "+esc(p.age):""}</span>` : ""}
+        ${p.visitType ? `<span class="badge ${p.visitType==="NP"?"badge-np":"badge-fu"}">${esc(p.visitType)}</span>` : ""}
+        ${p.note.trim() ? `<span class="badge badge-ok">✓</span>` : ""}
+        <svg class="pcard-arrow" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
+    </div>
+  `).join("");
+}
+
+// ─── PATIENT / NOTE ───────────────────────────────────────────────────────────
+function openPatient(id) {
+  activeId = id;
+  renderNoteScreen(true);
+  document.getElementById("listScreen").classList.remove("active");
+  document.getElementById("noteScreen").classList.add("active");
+}
+
+function goBack() {
+  isEditing = false;
+  clearTimeout(editingTimer);
+  document.getElementById("noteScreen").classList.remove("active");
+  document.getElementById("listScreen").classList.add("active");
+  renderList();
+}
+
+function renderNoteScreen(focus) {
+  const p = patients.find(p => p.id === activeId);
+  if (!p) return;
+  document.getElementById("notePatientName").textContent = p.name;
+
+  let meta = "";
+  if (p.room) meta += `<span class="note-hdr-room">📍 ${esc(p.room)}</span>`;
+  if (p.visitType) meta += `<span class="badge ${p.visitType==="NP"?"badge-np":"badge-fu"}" style="margin-left:0">${esc(p.visitType)}</span>`;
+  if (p.sex||p.age) meta += `<span class="badge badge-age">${esc(p.sex)}${p.age?" "+esc(p.age)+"y":""}</span>`;
+  document.getElementById("notePatientMeta").innerHTML = meta;
+
+  // Show or hide clinical snapshot
+  const snapCard = document.getElementById("noteSnapshotCard");
+  const snapText = document.getElementById("noteSnapshotText");
+  if (p.snapshot) {
+    snapText.textContent = p.snapshot;
+    snapCard.style.display = "block";
+  } else {
+    snapCard.style.display = "none";
+  }
+
+  const ta = document.getElementById("noteTextarea");
+  if (ta.value !== p.note) ta.value = p.note;
+  document.getElementById("noteTimestamp").textContent = p.updatedAt ? `Saved ${p.updatedAt}` : "";
+
+  // Nav buttons
+  const idx = patients.findIndex(p => p.id === activeId);
+  let navHtml = "";
+  if (idx > 0) navHtml += `<button class="btn btn-outline" onclick="openPatient('${patients[idx-1].id}')">← Prev</button>`;
+  if (idx < patients.length-1) navHtml += `<button class="btn btn-blue" onclick="openPatient('${patients[idx+1].id}')">Next →</button>`;
+  document.getElementById("navRow").innerHTML = navHtml;
+}
+
+function onNoteInput(value) {
+  const time = new Date().toLocaleTimeString("en-US", { hour:"2-digit", minute:"2-digit" });
+  const p = patients.find(p => p.id === activeId);
+  if (p) { p.note = value; p.updatedAt = time; }
+  document.getElementById("noteTimestamp").textContent = `Saved ${time}`;
+  isEditing = true;
+  clearTimeout(editingTimer);
+  editingTimer = setTimeout(() => { isEditing = false; }, 3000);
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(() => apiPatchNote(activeId, value), 1500);
+}
+
+function clearCurrentNote() {
+  const p = patients.find(p => p.id === activeId);
+  if (p) { p.note = ""; p.updatedAt = null; }
+  document.getElementById("noteTextarea").value = "";
+  document.getElementById("noteTimestamp").textContent = "";
+  apiPatchNote(activeId, "");
+}
+
+// ─── ADD MANUAL ───────────────────────────────────────────────────────────────
+async function addManual() {
+  const input = document.getElementById("newNameInput");
+  const n = input.value.trim(); if (!n) return;
+  patients.push({ id: crypto.randomUUID(), name:n, room:"", sex:"", age:"", visitType:"", note:"", updatedAt:null });
+  input.value = "";
+  await apiPost(patients);
+  renderList();
+}
+
+// ─── IMPORT ───────────────────────────────────────────────────────────────────
+function openImport()  { document.getElementById("importOverlay").classList.add("open"); }
+function closeImport() { document.getElementById("importOverlay").classList.remove("open"); }
+
+async function doImport() {
+  const text = document.getElementById("importText").value.trim();
+  if (!text) { closeImport(); return; }
+  const parsed = parseECW(text);
+  if (!parsed.length) { alert("No patients found — paste the raw ECW schedule text."); return; }
+  const existing = new Set(patients.map(p => p.name.toLowerCase()));
+  parsed.filter(p => !existing.has(p.name.toLowerCase())).forEach(p => patients.push(p));
+  document.getElementById("importText").value = "";
+  closeImport();
+  await apiPost(patients);
+  renderList();
+}
+
+// ─── EXPORT ───────────────────────────────────────────────────────────────────
+function openExport() {
+  const noted = patients.filter(p => p.note.trim());
+  const text = noted.length === 0 ? "No notes yet." :
+    noted.map(p => {
+      const meta = [p.room, p.visitType, (p.sex&&p.age)?`${p.sex} ${p.age}y`:""].filter(Boolean).join("  |  ");
+      return `${p.name}${meta?"\n"+meta:""}\n\n${p.note.trim()}`;
+    }).join("\n\n─────────────────────\n\n");
+  document.getElementById("exportText").value = text;
+  document.getElementById("exportOverlay").classList.add("open");
+}
+function closeExport() { document.getElementById("exportOverlay").classList.remove("open"); }
+function copyNotes() {
+  navigator.clipboard.writeText(document.getElementById("exportText").value).then(() => {
+    const btn = document.getElementById("copyBtn");
+    btn.textContent = "✓ Copied!";
+    setTimeout(() => btn.textContent = "Copy All Notes", 2000);
+  });
+}
+
+// ─── CLEAR ────────────────────────────────────────────────────────────────────
+function confirmClear() { document.getElementById("confirmBar").style.display = "flex"; }
+function cancelClear()  { document.getElementById("confirmBar").style.display = "none"; }
+async function doClear() {
+  patients = []; activeId = null;
+  document.getElementById("confirmBar").style.display = "none";
+  document.getElementById("noteScreen").classList.remove("active");
+  document.getElementById("listScreen").classList.add("active");
+  await apiDelete();
+  renderList();
+}
+
+// ─── UTIL ─────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+</script>
+</body>
+</html>
+
   --text:#0F172A;--sub:#64748B;
   --blue:#2563EB;--blue-l:#EFF6FF;
   --green:#059669;--green-l:#ECFDF5;
