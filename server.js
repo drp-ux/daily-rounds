@@ -14,58 +14,53 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// ─── Upstash Redis REST helpers ───────────────────────────────────────────────
-// Env vars set in Render dashboard:
-//   UPSTASH_REDIS_REST_URL  — e.g. https://xxx.upstash.io
-//   UPSTASH_REDIS_REST_TOKEN — your token
-
+// ─── Upstash Redis ────────────────────────────────────────────────────────────
 const REDIS_URL   = process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
 const KEY = "daily_rounds_patients";
 
 async function redisGet() {
-  if (!REDIS_URL) return null;
   const res = await fetch(`${REDIS_URL}/get/${KEY}`, {
     headers: { Authorization: `Bearer ${REDIS_TOKEN}` }
   });
   const json = await res.json();
-  // Upstash returns { result: "stringified-value" } or { result: null }
   if (!json.result) return null;
+  // result is a JSON string — parse it once
   return JSON.parse(json.result);
 }
 
 async function redisSet(data) {
-  if (!REDIS_URL) return;
-  // Upstash SET via REST: POST /{url}/set/{key}  body = { value }
-  // or use the pipeline-style URL: /set/key/value (but value must be encoded)
-  // Easiest: use the command endpoint
-  await fetch(`${REDIS_URL}/set/${KEY}`, {
+  // Use Upstash pipeline to SET key to a JSON string value
+  const value = JSON.stringify(data);
+  await fetch(`${REDIS_URL}/pipeline`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${REDIS_TOKEN}`,
       "Content-Type": "application/json"
     },
-    body: JSON.stringify(JSON.stringify(data)) // double-stringify: Upstash stores raw string
+    body: JSON.stringify([["SET", KEY, value]])
   });
 }
 
-// ─── Fallback in-memory store (used if Upstash env vars not set) ──────────────
-// This keeps data alive as long as the Render instance is running,
-// and degrades gracefully without crashing.
+// ─── In-memory fallback ───────────────────────────────────────────────────────
 let memStore = { patients: [], updatedAt: null };
 
 async function load() {
+  if (!REDIS_URL) return memStore;
   try {
     const data = await redisGet();
-    if (data) return data;
+    // Validate structure before returning
+    if (data && Array.isArray(data.patients)) return data;
+    return { patients: [], updatedAt: null };
   } catch(e) {
     console.error("Redis read error:", e.message);
+    return memStore;
   }
-  return memStore;
 }
 
 async function save(data) {
   memStore = data;
+  if (!REDIS_URL) return;
   try {
     await redisSet(data);
   } catch(e) {
@@ -92,26 +87,34 @@ app.post("/api/patients", async (req, res) => {
 });
 
 app.patch("/api/patients/:id/note", async (req, res) => {
-  const { note } = req.body;
-  const data = await load();
-  const p = data.patients.find(p => p.id === req.params.id);
-  if (!p) return res.status(404).json({ error: "not found" });
-  p.note = note;
-  p.updatedAt = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-  data.updatedAt = Date.now();
-  await save(data);
-  res.json({ ok: true });
+  try {
+    const { note } = req.body;
+    const data = await load();
+    const p = data.patients.find(p => p.id === req.params.id);
+    if (!p) return res.status(404).json({ error: "not found" });
+    p.note = note;
+    p.updatedAt = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    data.updatedAt = Date.now();
+    await save(data);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.patch("/api/patients/:id/seen", async (req, res) => {
-  const { seen } = req.body;
-  const data = await load();
-  const p = data.patients.find(p => p.id === req.params.id);
-  if (!p) return res.status(404).json({ error: "not found" });
-  p.seen = seen;
-  data.updatedAt = Date.now();
-  await save(data);
-  res.json({ ok: true });
+  try {
+    const { seen } = req.body;
+    const data = await load();
+    const p = data.patients.find(p => p.id === req.params.id);
+    if (!p) return res.status(404).json({ error: "not found" });
+    p.seen = seen;
+    data.updatedAt = Date.now();
+    await save(data);
+    res.json({ ok: true });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.delete("/api/patients", async (req, res) => {
@@ -119,11 +122,10 @@ app.delete("/api/patients", async (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── Health check ─────────────────────────────────────────────────────────────
 app.get("/api/health", async (req, res) => {
   const storage = REDIS_URL ? "upstash" : "memory-only";
   res.json({ ok: true, storage });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Daily Rounds running on port ${PORT} — storage: ${REDIS_URL ? "Upstash Redis" : "memory only (set UPSTASH env vars)"}`));
+app.listen(PORT, () => console.log(`Daily Rounds on port ${PORT} — ${REDIS_URL ? "Upstash Redis" : "memory only"}`));
